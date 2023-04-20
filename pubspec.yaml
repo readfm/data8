@@ -11,6 +11,8 @@ dependencies:
   drift: ^2.5.0
   event: ^2.1.2
   intl: ^0.18.0
+  universal_io: ^2.2.0
+  riverpod: ^2.3.5
 
 dev_dependencies:
   lints: ^2.0.0

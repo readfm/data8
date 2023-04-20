@@ -6,3 +6,5 @@ import 'shared.dart';
 SharedDatabase constructDb() {
   return SharedDatabase(WebDatabase('db'));
 }
+
+init() {}

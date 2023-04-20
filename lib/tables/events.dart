@@ -15,7 +15,7 @@ class Events extends Table {
   TextColumn get file => text().withDefault(Constant(''))();
   TextColumn get sig => text()();
 
-  static final map = <String, Event?>{};
+  //static final map = <String, Event?>{};
   /*
   static Future<int> save(Map<String, dynamic> m) async =>
       await db.into(db.events).insert(
@@ -60,6 +60,7 @@ class Events extends Table {
     return r;
   }
 
+  /*
   static Future<int> store(Map<String, dynamic> m) async {
     final r = await (db.select(db.events)
           ..where((tbl) => tbl.id.equals(m['id'])))
@@ -70,6 +71,9 @@ class Events extends Table {
     final now = DateTime.now();
     m['syncAt'] = now.millisecondsSinceEpoch ~/ 1000;
 
+
+
     return save(m);
   }
+  */
 }

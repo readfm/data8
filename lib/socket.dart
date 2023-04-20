@@ -16,7 +16,15 @@ class FSocket {
   }
   */
 
-  FSocket();
+  Function(
+    Map<String, dynamic>, [
+    List<String>,
+  ])? spread;
+  String name;
+  FSocket({
+    required this.name,
+    this.spread,
+  });
 
   bool active = true;
 
@@ -47,58 +55,54 @@ class FSocket {
 
   respond() {}
 
-  handle(Map<String, dynamic> m) async {
+  Future<Map<String, dynamic>?> handle(Map<String, dynamic> m) async {
     if (m['search'] is String) {
-      final select = db.select(db.events)
-        ..orderBy([
-          (t) => OrderingTerm(
-                expression: t.createdAt,
-                mode: OrderingMode.desc,
-              ),
-        ])
-        ..limit(100);
-
-      final search = m['search'] ?? '';
-      if (search.isNotEmpty) {
-        select.where((t) => t.content.like('%$search%'));
-      }
-      if (m['after'] is int) {
-        select.where((t) => t.createdAt.isSmallerThanValue(m['after']));
-      }
-      if (m['before'] is int) {
-        select.where((t) => t.createdAt.isBiggerThanValue(m['before']));
-      }
-      final r = await select.get();
-
-      final list = r.map((e) => e.toJson()).toList();
-
-      final re = <String, dynamic>{};
-      re['list'] = list;
-      re['cb'] = m['cb'];
-      sink(re);
-      return;
-    }
-
-    if (m['cmd'] == 'post') {
+      search(m);
+    } else if (m['cmd'] == 'post') {
+      final now = (DateTime.now()).millisecondsSinceEpoch ~/ 1000;
+      m['item']?['syncAt'] = now;
       final item = Event.fromJson(m['item']);
+
+      final select = db.select(db.events)
+        ..where(
+          (tbl) => tbl.id.equals(item.id),
+        );
+      final itemFound = await select.getSingleOrNull();
+
+      if (itemFound != null) {
+        return <String, dynamic>{
+          'cmd': 'sync',
+          'id': item.id,
+          'syncAt': now,
+          'msg': 'already exists',
+        };
+      }
 
       final id = await db.into(db.events).insert(item);
 
-      final re = <String, dynamic>{
-        'id': id,
-        'cb': m['cb'],
-      };
-      sink(re);
-      return;
+      spread?.call({
+        'cmd': 'post',
+        'item': item.toJson(),
+      }, [
+        name
+      ]);
 
-      return;
+      return <String, dynamic>{
+        'cmd': 'sync',
+        'id': item.id,
+      };
     }
+    return null;
   }
 
   receive(d) async {
     if (d is String && d.startsWith('{') && d.endsWith('}')) {
       final m = jsonDecode(d);
-      handle(m);
+      final r = await handle(m);
+      if (r != null) {
+        sink(r);
+      }
+      return;
     }
     final b = d as Uint8List;
 
@@ -144,6 +148,37 @@ class FSocket {
     }
     */
     return null;
+  }
+
+  search(Map<String, dynamic> m) async {
+    final select = db.select(db.events)
+      ..orderBy([
+        (t) => OrderingTerm(
+              expression: t.createdAt,
+              mode: OrderingMode.desc,
+            ),
+      ])
+      ..limit(100);
+
+    final search = m['search'] ?? '';
+    if (search.isNotEmpty) {
+      select.where((t) => t.content.like('%$search%'));
+    }
+    if (m['after'] is int) {
+      select.where((t) => t.createdAt.isSmallerThanValue(m['after']));
+    }
+    if (m['before'] is int) {
+      select.where((t) => t.createdAt.isBiggerThanValue(m['before']));
+    }
+    final r = await select.get();
+
+    final list = r.map((e) => e.toJson()).toList();
+
+    final re = <String, dynamic>{};
+    re['list'] = list;
+    re['cb'] = m['cb'];
+    sink(re);
+    return;
   }
 
   static final _onConnectedCBs = <Function(FSocket socket)>[];
